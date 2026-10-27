@@ -22,7 +22,7 @@
     <view class="grid">
       <view class="card" v-for="item in list" :key="item.id" @tap="goDetail(item)">
         <view class="thumb-wrap">
-          <image class="thumb" :src="imgUrl(item.cover)" mode="aspectFill" />
+          <image class="thumb" :src="resolveImg(item.cover)" mode="aspectFill" />
         </view>
         <view class="info">
           <text class="name">{{ item.name }}</text>
@@ -48,6 +48,7 @@
 
 <script>
 import { getProducts } from '@/api/goods'
+import { resolveImg } from '@/utils/image'
 
 // 小程序端用"滚动到底部自动加载更多"，每页 6 件（2 列 × 3 行一屏，触底再加一屏）；
 // 库里 10 件商品，正好能看到 6 + 4 的追加效果
@@ -76,6 +77,10 @@ export default {
     if (!this.hasMore || this.loading || this.loadingMore) return
     this.page += 1
     this.loadProducts()
+  },
+  async onPullDownRefresh() {
+    await this.loadProducts(true)
+    uni.stopPullDownRefresh()
   },
   methods: {
     // reset=true 表示重新从第 1 页开始（首次进入、搜索时）
@@ -123,12 +128,10 @@ export default {
     },
     goDetail(item) {
       // D17 替换为：uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}` })
-      uni.showToast({ title: '详情页将在 D17 实现', icon: 'none' })
+      // uni.showToast({ title: '详情页将在 D17 实现', icon: 'none' })
+      uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}` })
     },
-    imgUrl(url) {
-      if (!url) return '/static/logo.png'
-      return url.startsWith('http') ? url : `http://localhost:3000${url}`
-    },
+    resolveImg,
   },
 }
 </script>
