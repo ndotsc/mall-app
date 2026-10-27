@@ -24,7 +24,7 @@
             <input class="field" v-model="form.district" placeholder="区/县" />
             <input class="field" v-model="form.detail" placeholder="详细地址" />
             <label class="df">
-                <checkbox :checked="form.isDefault" @tap="form.isDefault = !form.isDefault" /> 设为默认地址
+                <checkbox :checked="form.isDefault" @change="onDefaultChange" /> 设为默认地址
             </label>
             <view class="form-btns">
                 <view class="btn ghost" @tap="closeForm">取消</view>
@@ -48,6 +48,7 @@ export default {
     },
     methods: {
         reset() { this.form = { receiver: '', phone: '', province: '', city: '', district: '', detail: '', isDefault: false }; this.editingId = null },
+        onDefaultChange(e) { this.form.isDefault = e.detail.value },
         openAdd() { this.reset(); this.showForm = true },
         openEdit(a) { this.form = { ...a }; this.editingId = a.id; this.showForm = true },
         closeForm() { this.showForm = false; this.reset() },
