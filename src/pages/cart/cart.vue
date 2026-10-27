@@ -11,6 +11,7 @@
                     <text v-if="cart.allChecked" class="tick">✓</text>
                 </view>
                 <text class="top-text">全选</text>
+                <text class="my-order" @tap="goOrders">我的订单</text>
                 <text class="clear" @tap="removeChecked">删除选中</text>
             </view>
 
@@ -60,8 +61,9 @@ export default {
         goShop() { uni.switchTab({ url: '/pages/index/index' }) },
         checkout() {
             if (!this.cart.checkedCount) return uni.showToast({ title: '请先勾选商品', icon: 'none' })
-            uni.showToast({ title: '结算将在 D19 接入', icon: 'none' })
+            uni.navigateTo({ url: '/pages/confirm/confirm' })
         },
+        goOrders() { uni.navigateTo({ url: '/pages/order/order' }) },
     },
 }
 </script>
@@ -108,7 +110,6 @@ export default {
 }
 
 .clear {
-    margin-left: auto;
     font-size: 26rpx;
     color: #e5484d;
 }
@@ -240,5 +241,11 @@ export default {
     background: #2563eb;
     color: #fff;
     font-size: 28rpx;
+}
+
+.my-order {
+    margin-left: auto;
+    font-size: 26rpx;
+    color: #2563eb;
 }
 </style>

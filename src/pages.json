@@ -25,6 +25,24 @@
 			"style": {
 				"navigationBarTitleText": "收货地址"
 			}
+		},
+		{
+			"path": "pages/confirm/confirm",
+			"style": {
+				"navigationBarTitleText": "确认订单"
+			}
+		},
+		{
+			"path": "pages/order/order",
+			"style": {
+				"navigationBarTitleText": "我的订单"
+			}
+		},
+		{
+			"path": "pages/order-detail/order-detail",
+			"style": {
+				"navigationBarTitleText": "订单详情"
+			}
 		}
 	],
 	"globalStyle": {
@@ -35,7 +53,9 @@
 	},
 	"easycom": {
 		"autoscan": true,
-		"custom": { "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue" }
+		"custom": {
+			"^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+		}
 	},
 	"tabBar": {
 		"color": "#6b7280",
