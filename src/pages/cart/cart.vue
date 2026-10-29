@@ -90,10 +90,9 @@ export default {
 .page {
     min-height: 100vh;
     background: #f6f7f9;
-    /* 购物车是 tabBar 页：原生 tabBar 自身已含底部安全区，
-       这里只需给「结算栏(约100rpx) + 余量」留白即可，不要再叠加 env()，
-       否则结算栏会和 tabBar 之间出现多余空隙（iPhone 真机尤为明显） */
-    padding-bottom: 220rpx;
+    /* 底部留白：保证商品列表滚动时不被固定结算栏(.bar, 约 100rpx)遮挡。
+       注意这只是滚动余量，与「结算栏定位」无关——定位靠 .bar 的 bottom:0。 */
+    padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
 }
 
 .empty {
@@ -232,10 +231,13 @@ export default {
     position: fixed;
     left: 0;
     right: 0;
-    /* 购物车是 tabBar 页：固定结算栏抬到原生 tabBar（约 100rpx）之上即可；
-       bottom:0 会被底部「首页/购物车」原生 tab 盖住。原生 tabBar 已含底部安全区，
-       不要再叠加 env(safe-area-inset-bottom)，否则会留多余空隙 */
-    bottom: 100rpx;
+    /* 结算栏「吸附」原生 tabBar：
+       购物车是 tabBar 页，uni-app 会为原生 tabBar 预留空间，
+       webview 的 bottom:0 已经是「tabBar 顶边」。所以固定栏必须 bottom:0 才严丝合缝；
+       之前写 100rpx（或再叠 env 安全区）会把栏往上抬、在栏与 tabBar 间留出空隙。
+       底部安全区（小白条）由原生 tabBar 自己处理，这里不要再叠 env()，
+       否则反而多出一段空隙。 */
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;

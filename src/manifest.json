@@ -1,6 +1,6 @@
 {
     "name" : "商城",
-    "appid" : "",
+    "appid" : "wxa7e1f8945573037a",
     "description" : "uni-app 商城（Vue3）",
     "versionName" : "1.0.0",
     "versionCode" : "100",
@@ -42,7 +42,7 @@
     },
     "quickapp" : {},
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wxa7e1f8945573037a",
         "setting" : {
             "urlCheck" : false
         },

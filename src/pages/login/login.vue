@@ -58,7 +58,11 @@ function buildOauthUrl() {
     uni.showToast({ title: '未配置公众号 AppID', icon: 'none' })
     return ''
   }
-  const redirectUri = encodeURIComponent(location.origin + location.pathname + '#/pages/login/login')
+  // 回调地址：优先用 VITE_OA_REDIRECT_BASE（部署 H5 的站点根），
+  // 否则回退到当前页面 origin + pathname（本地/H5 自托管都适用）。
+  const base = import.meta.env.VITE_OA_REDIRECT_BASE
+    || (typeof location !== 'undefined' ? location.origin + location.pathname : '')
+  const redirectUri = encodeURIComponent(base + '#/pages/login/login')
   const state = Date.now()
   return (
     `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appid}` +
