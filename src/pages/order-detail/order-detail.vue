@@ -57,7 +57,7 @@ export default {
         order() { return useOrderStore() },
         o() { return this.order.orderByNo(this.orderNo) },
     },
-    onLoad(opt) { this.orderNo = opt.orderNo },
+    onLoad(opt) { this.orderNo = opt.orderNo; this.order.fetchDetail(this.orderNo) },
     methods: {
         resolveImg,
         statusText(s) { return ORDER_STATUS[s] || '未知' },

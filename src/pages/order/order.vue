@@ -24,6 +24,7 @@
 import { useOrderStore, ORDER_STATUS } from '@/stores/order'
 export default {
     computed: { order() { return useOrderStore() } },
+    onShow() { this.order.load() },   // 进入/返回都从后端拉最新订单
     methods: {
         statusText(s) { return ORDER_STATUS[s] || '未知' },
         goDetail(no) { uni.navigateTo({ url: `/pages/order-detail/order-detail?orderNo=${no}` }) },

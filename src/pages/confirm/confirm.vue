@@ -6,14 +6,14 @@
         </view>
 
         <template v-else>
-            <!-- 收货地址（点击去管理；默认用地址 store 的默认地址） -->
+            <!-- 收货地址：点击进入地址页点选；默认用默认地址，也可选其它 -->
             <view class="addr" @tap="goAddress">
-                <block v-if="addr.defaultAddress">
+                <block v-if="addr.chosenAddress">
                     <view class="addr-top">
-                        <text class="name">{{ addr.defaultAddress.receiver }}</text>
-                        <text class="phone">{{ addr.defaultAddress.phone }}</text>
+                        <text class="name">{{ addr.chosenAddress.name }}</text>
+                        <text class="phone">{{ addr.chosenAddress.phone }}</text>
                     </view>
-                    <text class="addr-detail">{{ fullAddress(addr.defaultAddress) }}</text>
+                    <text class="addr-detail">{{ fullAddress(addr.chosenAddress) }}</text>
                 </block>
                 <text v-else class="addr-add">请选择收货地址 ＞</text>
             </view>
@@ -54,29 +54,46 @@ export default {
     computed: {
         cart() { return useCartStore() },
         addr() { return useAddressStore() },
+        // 根据入口区分：立即购买用 buyNow 单品；购物车结算用勾选项
         items() {
+            if (this.mode === 'buy') {
+                return this.cart.buyNowItems
+            }
             return this.cart.checkedItems.map((i) => ({
                 productId: i.productId, name: i.title, price: i.price, cover: i.image, number: i.quantity,
             }))
         },
         total() { return this.items.reduce((s, i) => s + i.price * i.number, 0) },
     },
-    data() { return { remark: '' } },
+    data() { return { remark: '', mode: 'cart' } },
+    onLoad(opt) {
+        this.mode = opt.mode === 'buy' ? 'buy' : 'cart'
+        this.addr.load()   // 拉取地址（含默认地址），供下单页展示
+    },
     methods: {
         resolveImg,
-        fullAddress(a) { return `${a.province}${a.city}${a.district} ${a.detail}` },
-        goAddress() { uni.navigateTo({ url: '/pages/address/address' }) },
+        fullAddress(a) { return `${a.province || ''}${a.city || ''}${a.district || ''} ${a.detail}`.trim() },
+        goAddress() {
+            // 进入地址页并带上 select=1，让地址页处于「点选」模式
+            uni.navigateTo({ url: '/pages/address/address?select=1' })
+        },
         goCart() { uni.switchTab({ url: '/pages/cart/cart' }) },
-        submit() {
-            if (!this.addr.defaultAddress) return uni.showToast({ title: '请先选择收货地址', icon: 'none' })
-            const d = this.addr.defaultAddress
-            const orderNo = useOrderStore().createOrder({
-                items: this.items,
-                info: { name: d.receiver, phone: d.phone, address: this.fullAddress(d) },
-                remark: this.remark,
-            })
-            this.cart.removeChecked()   // 清空已结算的勾选商品
-            uni.navigateTo({ url: `/pages/order-detail/order-detail?orderNo=${orderNo}` })
+        async submit() {
+            const d = this.addr.chosenAddress
+            if (!d) return uni.showToast({ title: '请先选择收货地址', icon: 'none' })
+            try {
+                const orderNo = await useOrderStore().createOrder({
+                    items: this.items,
+                    info: { name: d.name, phone: d.phone, address: this.fullAddress(d) },
+                    remark: this.remark,
+                })
+                // 立即购买清空单品暂存；购物车结算清空已勾选
+                if (this.mode === 'buy') this.cart.clearBuyNow()
+                else this.cart.removeChecked()
+                uni.navigateTo({ url: `/pages/order-detail/order-detail?orderNo=${orderNo}` })
+            } catch {
+                // 下单失败（如登录失效）：request 已弹 toast，这里不重复提示
+            }
         },
     },
 }

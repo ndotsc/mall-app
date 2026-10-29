@@ -1,32 +1,35 @@
 import { defineStore } from 'pinia'
-const KEY = 'mall_address'
+import * as addrApi from '@/api/address'
+
+// 收货地址：数据以「真后端」为准（src/api/address → 后端 /api/addresses）。
+// pickedId 仅用于「确认订单页点选地址」的本次下单上下文，不持久化到后端。
 export const useAddressStore = defineStore('address', {
-    state: () => ({ list: uni.getStorageSync(KEY) || [] }),
-    getters: { defaultAddress: (s) => s.list.find((a) => a.isDefault) || null },
-    actions: {
-        persist() { uni.setStorageSync(KEY, this.list) },
-        add(addr) {
-            const item = { id: Date.now(), ...addr }
-            this.list.push(item)
-            // 勾了默认 → 设为唯一默认；否则若还没有默认则把第一条设为默认
-            if (addr.isDefault) this.setDefault(item.id)
-            else if (!this.list.some((a) => a.isDefault)) item.isDefault = true
-            this.persist()
-        },
-        update(id, patch) {
-            const i = this.list.find((a) => a.id === id)
-            if (!i) return
-            Object.assign(i, patch)
-            if (patch.isDefault) this.list.forEach((a) => { if (a.id !== id) a.isDefault = false })
-            // 兜底：若取消默认导致没有默认地址，则把第一条设为默认
-            if (!this.list.some((a) => a.isDefault) && this.list.length) this.list[0].isDefault = true
-            this.persist()
-        },
-        remove(id) {
-            this.list = this.list.filter((a) => a.id !== id)
-            if (!this.list.find((a) => a.isDefault) && this.list.length) this.list[0].isDefault = true
-            this.persist()
-        },
-        setDefault(id) { this.list.forEach((a) => (a.isDefault = a.id === id)); this.persist() },
+  state: () => ({ list: [], pickedId: null, loading: false }),
+  getters: {
+    defaultAddress: (s) => s.list.find((a) => a.isDefault) || null,
+    // 确认订单页使用的地址：优先用用户刚「点选」的；没点选则用默认地址
+    chosenAddress: (s) => {
+      if (s.pickedId) {
+        const picked = s.list.find((a) => a.id === s.pickedId)
+        if (picked) return picked
+      }
+      return s.list.find((a) => a.isDefault) || null
     },
+  },
+  actions: {
+    async load() {
+      this.loading = true
+      try { this.list = (await addrApi.getAddresses()) || [] } catch { this.list = [] } finally { this.loading = false }
+    },
+    async add(addr) { await addrApi.addAddress(addr); await this.load() },
+    async update(id, patch) { await addrApi.updateAddress(id, patch); await this.load() },
+    async remove(id) {
+      await addrApi.deleteAddress(id)
+      if (this.pickedId === id) this.pickedId = null
+      await this.load()
+    },
+    async setDefault(id) { await addrApi.updateAddress(id, { isDefault: true }); await this.load() },
+    setPicked(id) { this.pickedId = id },
+    clearPicked() { this.pickedId = null },
+  },
 })

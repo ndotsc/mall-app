@@ -2,6 +2,7 @@
 import { getProduct } from '@/api/goods'
 import { resolveImg } from '@/utils/image'
 import { useCartStore } from '@/stores/cart'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
     data() {
@@ -61,8 +62,16 @@ export default {
             this.closeSku()
         },
         buyNow() {
-            uni.showToast({ title: '下单将在 D19 接入', icon: 'none' })
+            if (!useAuthStore().isLoggedIn) {
+                uni.showToast({ title: '请先登录', icon: 'none' })
+                this.closeSku()
+                return uni.navigateTo({ url: '/pages/login/login' })
+            }
+            // 立即购买：把当前商品+数量放进 cart store 的「单买」暂存，再进确认订单页
+            // 与购物车结算走的是两条互斥入口，互不污染
+            useCartStore().setBuyNow(this.product, this.qty)
             this.closeSku()
+            uni.navigateTo({ url: '/pages/confirm/confirm?mode=buy' })
         },
         goHome() {
             uni.reLaunch({ url: '/pages/index/index' })

@@ -12,6 +12,7 @@
                 </view>
                 <text class="top-text">全选</text>
                 <text class="my-order" @tap="goOrders">我的订单</text>
+                <text class="my-order mine" @tap="goMine">我的</text>
                 <text class="clear" @tap="removeChecked">删除选中</text>
             </view>
 
@@ -48,10 +49,12 @@
 
 <script>
 import { useCartStore } from '@/stores/cart'
+import { useAuthStore } from '@/stores/auth'
 import { resolveImg } from '@/utils/image'
 
 export default {
     computed: { cart() { return useCartStore() } },
+    onShow() { this.cart.load() },   // 每次进入购物车都从后端拉最新（下单后回来能刷新）
     methods: {
         resolveImg,
         removeChecked() {
@@ -61,9 +64,24 @@ export default {
         goShop() { uni.switchTab({ url: '/pages/index/index' }) },
         checkout() {
             if (!this.cart.checkedCount) return uni.showToast({ title: '请先勾选商品', icon: 'none' })
+            // 结算前必须登录（下单接口需要 Authorization）
+            if (!useAuthStore().isLoggedIn) {
+                uni.showToast({ title: '请先登录', icon: 'none' })
+                return uni.navigateTo({ url: '/pages/login/login' })
+            }
             uni.navigateTo({ url: '/pages/confirm/confirm' })
         },
-        goOrders() { uni.navigateTo({ url: '/pages/order/order' }) },
+        goOrders() {
+            if (!useAuthStore().isLoggedIn) {
+                uni.showToast({ title: '请先登录', icon: 'none' })
+                return uni.navigateTo({ url: '/pages/login/login' })
+            }
+            uni.navigateTo({ url: '/pages/order/order' })
+        },
+        goMine() {
+            if (!useAuthStore().isLoggedIn) return uni.navigateTo({ url: '/pages/login/login' })
+            uni.navigateTo({ url: '/pages/mine/mine' })
+        },
     },
 }
 </script>
@@ -72,8 +90,10 @@ export default {
 .page {
     min-height: 100vh;
     background: #f6f7f9;
-    /* 留出「结算栏 + 原生 tabBar」的高度，避免最后一件商品被挡住 */
-    padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
+    /* 购物车是 tabBar 页：原生 tabBar 自身已含底部安全区，
+       这里只需给「结算栏(约100rpx) + 余量」留白即可，不要再叠加 env()，
+       否则结算栏会和 tabBar 之间出现多余空隙（iPhone 真机尤为明显） */
+    padding-bottom: 220rpx;
 }
 
 .empty {
@@ -212,9 +232,10 @@ export default {
     position: fixed;
     left: 0;
     right: 0;
-    /* 购物车是 tabBar 页：固定结算栏必须抬到原生 tabBar（约 100rpx）之上，
-       bottom:0 会被底部的「首页/购物车」原生 tab 盖住；env 兼容 iPhone 安全区 */
-    bottom: calc(100rpx + env(safe-area-inset-bottom));
+    /* 购物车是 tabBar 页：固定结算栏抬到原生 tabBar（约 100rpx）之上即可；
+       bottom:0 会被底部「首页/购物车」原生 tab 盖住。原生 tabBar 已含底部安全区，
+       不要再叠加 env(safe-area-inset-bottom)，否则会留多余空隙 */
+    bottom: 100rpx;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -247,5 +268,9 @@ export default {
     margin-left: auto;
     font-size: 26rpx;
     color: #2563eb;
+}
+
+.mine {
+    margin-left: 0;
 }
 </style>

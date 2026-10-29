@@ -2,22 +2,25 @@
     <view class="page">
         <view v-if="addr.list.length === 0 && !showForm" class="empty">还没有收货地址</view>
 
-        <view class="card" v-for="a in addr.list" :key="a.id">
+        <view class="card" v-for="a in addr.list" :key="a.id" :class="{ pickable: selectMode }" @tap="selectMode && pick(a)">
             <view class="card-top">
-                <text class="name">{{ a.receiver }}</text>
+                <text class="name">{{ a.name }}</text>
                 <text class="phone">{{ a.phone }}</text>
                 <text v-if="a.isDefault" class="tag">默认</text>
             </view>
             <text class="region">{{ a.province }}{{ a.city }}{{ a.district }} {{ a.detail }}</text>
-            <view class="ops">
+            <view class="ops" v-if="!selectMode">
                 <text v-if="!a.isDefault" class="op" @tap="addr.setDefault(a.id)">设为默认</text>
                 <text class="op" @tap="openEdit(a)">编辑</text>
                 <text class="op danger" @tap="del(a.id)">删除</text>
             </view>
+            <view class="ops" v-else>
+                <text class="op" @tap.stop="pick(a)">选择此地址</text>
+            </view>
         </view>
 
         <view v-if="showForm" class="form">
-            <input class="field" v-model="form.receiver" placeholder="收货人" />
+            <input class="field" v-model="form.name" placeholder="收货人" />
             <input class="field" v-model="form.phone" placeholder="手机号" />
             <input class="field" v-model="form.province" placeholder="省" />
             <input class="field" v-model="form.city" placeholder="市" />
@@ -42,23 +45,27 @@ export default {
     computed: { addr() { return useAddressStore() } },
     data() {
         return {
-            showForm: false, editingId: null,
-            form: { receiver: '', phone: '', province: '', city: '', district: '', detail: '', isDefault: false },
+            showForm: false, editingId: null, selectMode: false,
+            form: { name: '', phone: '', province: '', city: '', district: '', detail: '', isDefault: false },
         }
     },
+    onLoad(options) { this.selectMode = options.select === '1' },
+    onShow() { this.addr.load() },   // 进入/返回都刷新地址列表
     methods: {
-        reset() { this.form = { receiver: '', phone: '', province: '', city: '', district: '', detail: '', isDefault: false }; this.editingId = null },
+        reset() { this.form = { name: '', phone: '', province: '', city: '', district: '', detail: '', isDefault: false }; this.editingId = null },
         onDefaultChange(e) { this.form.isDefault = e.detail.value },
         openAdd() { this.reset(); this.showForm = true },
         openEdit(a) { this.form = { ...a }; this.editingId = a.id; this.showForm = true },
         closeForm() { this.showForm = false; this.reset() },
         save() {
-            if (!this.form.receiver || !this.form.phone || !this.form.detail) return uni.showToast({ title: '请填完整', icon: 'none' })
+            if (!this.form.name || !this.form.phone || !this.form.detail) return uni.showToast({ title: '请填完整', icon: 'none' })
             if (this.editingId) this.addr.update(this.editingId, this.form)
             else this.addr.add(this.form)
             this.closeForm()
         },
         del(id) { uni.showModal({ title: '提示', content: '删除该地址？', success: (r) => { if (r.confirm) this.addr.remove(id) } }) },
+        // 点选模式：选中地址后回退到确认订单页（确认页会读取 chosenAddress）
+        pick(a) { this.addr.setPicked(a.id); uni.navigateBack() },
     },
 }
 </script>
