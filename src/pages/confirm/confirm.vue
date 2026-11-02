@@ -30,17 +30,50 @@
                 </view>
             </view>
 
+            <!-- 优惠券选择 -->
+            <view class="coupon-row" @tap="openCoupon">
+                <text class="cr-label">优惠券</text>
+                <text class="cr-value" v-if="!selectedCoupon">请选择优惠券 ＞</text>
+                <text class="cr-value on" v-else>-¥{{ (discount / 100).toFixed(2) }}（{{ selectedCoupon.coupon.label }}）</text>
+            </view>
+
             <input class="remark" v-model="remark" placeholder="订单备注（选填）" />
 
             <!-- 提交栏（整页，bottom:0 安全） -->
             <view class="bar">
                 <view class="bar-left">
                     <text class="bar-label">合计</text>
-                    <text class="bar-amount">¥{{ (total / 100).toFixed(2) }}</text>
+                    <text class="bar-amount">¥{{ (payAmount / 100).toFixed(2) }}</text>
+                    <text v-if="discount > 0" class="bar-discount">已优惠¥{{ (discount / 100).toFixed(2) }}</text>
                 </view>
                 <view class="bar-btn" @tap="submit">提交订单</view>
             </view>
         </template>
+
+        <!-- 优惠券选择弹层 -->
+        <view v-if="showCoupon" class="mask" @tap="showCoupon = false">
+            <view class="sheet" @tap.stop>
+                <view class="sheet-title">选择优惠券</view>
+                <view v-if="!coupons.length" class="sheet-empty">暂无可用优惠券</view>
+                <view
+                    v-for="c in coupons"
+                    :key="c.id"
+                    class="c-item"
+                    :class="{ disabled: computeDiscount(c.coupon, total) === 0 }"
+                    @tap="pickCoupon(c)"
+                >
+                    <view class="c-left">
+                        <text class="c-label">{{ c.coupon.label }}</text>
+                        <text class="c-name">{{ c.coupon.name }}</text>
+                    </view>
+                    <view class="c-right">
+                        <text v-if="computeDiscount(c.coupon, total) === 0" class="c-tip">不可用</text>
+                        <text v-else class="c-check" :class="{ on: selectedCoupon && selectedCoupon.id === c.id }">✓</text>
+                    </view>
+                </view>
+                <view class="sheet-cancel" @tap="showCoupon = false">取消</view>
+            </view>
+        </view>
     </view>
 </template>
 
@@ -48,6 +81,7 @@
 import { useCartStore } from '@/stores/cart'
 import { useAddressStore } from '@/stores/address'
 import { useOrderStore } from '@/stores/order'
+import { getMyCoupons } from '@/api/coupon'
 import { resolveImg } from '@/utils/image'
 
 export default {
@@ -63,16 +97,61 @@ export default {
                 productId: i.productId, name: i.title, price: i.price, cover: i.image, number: i.quantity,
             }))
         },
-        total() { return this.items.reduce((s, i) => s + i.price * i.number, 0) },
+        total() { return this.items.reduce((s, i) => s + i.price * i.number, 0) }, // 小计（分）
+        discount() {
+            return this.selectedCoupon ? this.computeDiscount(this.selectedCoupon.coupon, this.total) : 0
+        },
+        payAmount() { return Math.max(0, this.total - this.discount) }, // 应付（分）
     },
-    data() { return { remark: '', mode: 'cart' } },
+    data() {
+        return {
+            remark: '',
+            mode: 'cart',
+            coupons: [],          // 我的未使用券
+            selectedCoupon: null, // 当前选中的用户券（含 coupon 快照）
+            showCoupon: false,
+        }
+    },
     onLoad(opt) {
         this.mode = opt.mode === 'buy' ? 'buy' : 'cart'
         this.addr.load()   // 拉取地址（含默认地址），供下单页展示
+        this.loadCoupons()
     },
     methods: {
         resolveImg,
         fullAddress(a) { return `${a.province || ''}${a.city || ''}${a.district || ''} ${a.detail}`.trim() },
+        // 与后端一致的优惠计算规则（单位：分）
+        computeDiscount(coupon, subtotal) {
+            let d = 0
+            if (coupon.type === 'full_reduction') {
+                if (subtotal >= coupon.threshold) d = coupon.value
+            } else if (coupon.type === 'instant') {
+                d = coupon.value
+            } else if (coupon.type === 'discount') {
+                d = Math.floor((subtotal * (100 - coupon.value)) / 100)
+                if (coupon.maxDiscount != null) d = Math.min(d, coupon.maxDiscount)
+            }
+            if (d < 0) d = 0
+            if (d > subtotal) d = subtotal
+            return d
+        },
+        async loadCoupons() {
+            try {
+                const data = await getMyCoupons({ status: 'unused' })
+                this.coupons = data.list || []
+            } catch {
+                this.coupons = []
+            }
+        },
+        openCoupon() { this.showCoupon = true },
+        pickCoupon(c) {
+            if (this.computeDiscount(c.coupon, this.total) === 0) {
+                uni.showToast({ title: '该券不满足使用条件', icon: 'none' })
+                return
+            }
+            this.selectedCoupon = c
+            this.showCoupon = false
+        },
         goAddress() {
             // 进入地址页并带上 select=1，让地址页处于「点选」模式
             uni.navigateTo({ url: '/pages/address/address?select=1' })
@@ -86,6 +165,7 @@ export default {
                     items: this.items,
                     info: { name: d.name, phone: d.phone, address: this.fullAddress(d) },
                     remark: this.remark,
+                    couponId: this.selectedCoupon ? this.selectedCoupon.id : undefined,
                 })
                 // 立即购买清空单品暂存；购物车结算清空已勾选
                 if (this.mode === 'buy') this.cart.clearBuyNow()
@@ -214,8 +294,34 @@ export default {
     color: #6b7280;
 }
 
-.remark {
+.coupon-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin: 24rpx;
+    background: #fff;
+    border: 2rpx solid #e6e8eb;
+    border-radius: 24rpx;
+    padding: 28rpx 24rpx;
+}
+
+.cr-label {
+    font-size: 28rpx;
+    color: #1f2328;
+}
+
+.cr-value {
+    font-size: 26rpx;
+    color: #9ca3af;
+}
+
+.cr-value.on {
+    color: #e5484d;
+    font-weight: 600;
+}
+
+.remark {
+    margin: 0 24rpx;
     height: 80rpx;
     border: 2rpx solid #e6e8eb;
     border-radius: 12rpx;
@@ -238,8 +344,13 @@ export default {
     border-top: 2rpx solid #e6e8eb;
 }
 
+.bar-left {
+    display: flex;
+    flex-direction: column;
+}
+
 .bar-label {
-    font-size: 26rpx;
+    font-size: 22rpx;
     color: #6b7280;
 }
 
@@ -247,7 +358,12 @@ export default {
     font-size: 38rpx;
     font-weight: 700;
     color: #e5484d;
-    margin-left: 8rpx;
+    margin-top: 2rpx;
+}
+
+.bar-discount {
+    font-size: 22rpx;
+    color: #16a34a;
 }
 
 .bar-btn {
@@ -256,5 +372,98 @@ export default {
     background: #2563eb;
     color: #fff;
     font-size: 28rpx;
+}
+
+.mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: flex-end;
+    z-index: 99;
+}
+
+.sheet {
+    width: 100%;
+    background: #fff;
+    border-radius: 24rpx 24rpx 0 0;
+    padding: 24rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.sheet-title {
+    text-align: center;
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #1f2328;
+    padding: 12rpx 0 24rpx;
+}
+
+.sheet-empty {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 28rpx;
+    padding: 60rpx 0;
+}
+
+.c-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx 20rpx;
+    background: #fff;
+    border: 2rpx solid #e6e8eb;
+    border-radius: 16rpx;
+    margin-bottom: 16rpx;
+}
+
+.c-item.disabled {
+    opacity: 0.5;
+}
+
+.c-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+}
+
+.c-label {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #e5484d;
+}
+
+.c-name {
+    font-size: 26rpx;
+    color: #6b7280;
+}
+
+.c-right {
+    flex-shrink: 0;
+}
+
+.c-tip {
+    font-size: 24rpx;
+    color: #9ca3af;
+}
+
+.c-check {
+    font-size: 36rpx;
+    color: #cbd2d9;
+}
+
+.c-check.on {
+    color: #2563eb;
+}
+
+.sheet-cancel {
+    margin-top: 12rpx;
+    text-align: center;
+    padding: 24rpx;
+    font-size: 30rpx;
+    color: #6b7280;
+    background: #f6f7f9;
+    border-radius: 16rpx;
 }
 </style>

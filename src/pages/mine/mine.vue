@@ -16,6 +16,18 @@
         <text>收货地址</text>
         <text class="arrow">›</text>
       </view>
+      <view class="item" @tap="go('/pages/favorite/favorite')">
+        <text>我的收藏</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="item" @tap="go('/pages/coupon/coupon')">
+        <text>领券中心</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="item" @tap="go('/pages/myCoupon/myCoupon')">
+        <text>我的优惠券</text>
+        <text class="arrow">›</text>
+      </view>
     </view>
 
     <button v-if="auth.isLoggedIn" class="logout" @tap="onLogout">退出登录</button>

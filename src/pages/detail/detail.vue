@@ -1,6 +1,7 @@
 <script>
 import { getProduct } from '@/api/goods'
 import { getReviews, createReview } from '@/api/review'
+import { checkFavorite, addFavorite, removeFavorite } from '@/api/favorite'
 import { resolveImg } from '@/utils/image'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
@@ -17,6 +18,8 @@ export default {
             myRating: 5,
             myContent: '',
             submitting: false,
+            favorited: false,
+            favLoading: false,
         }
     },
     computed: {
@@ -36,6 +39,7 @@ export default {
         this.id = options.id
         this.loadDetail()
         this.loadReviews()
+        if (useAuthStore().isLoggedIn) this.loadFavoriteState()
     },
     methods: {
         async loadDetail() {
@@ -133,6 +137,37 @@ export default {
             if (name.length <= 2) return name[0] + '***'
             return name.slice(0, 2) + '***' + name.slice(-1)
         },
+        async loadFavoriteState() {
+            try {
+                const data = await checkFavorite(Number(this.id))
+                this.favorited = !!data.favorited
+            } catch (e) {
+                // 未登录 / 网络异常忽略，保持默认未收藏态
+            }
+        },
+        async toggleFavorite() {
+            if (!useAuthStore().isLoggedIn) {
+                uni.showToast({ title: '请先登录', icon: 'none' })
+                return uni.navigateTo({ url: '/pages/login/login' })
+            }
+            if (this.favLoading) return
+            this.favLoading = true
+            try {
+                if (this.favorited) {
+                    await removeFavorite(Number(this.id))
+                    this.favorited = false
+                    uni.showToast({ title: '已取消收藏', icon: 'none' })
+                } else {
+                    await addFavorite(Number(this.id))
+                    this.favorited = true
+                    uni.showToast({ title: '已收藏', icon: 'none' })
+                }
+            } catch (e) {
+                uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+            } finally {
+                this.favLoading = false
+            }
+        },
         formatDate(ts) {
             if (!ts) return ''
             const d = new Date(ts)
@@ -209,6 +244,9 @@ export default {
             <view class="bar">
                 <view class="bar-icon" @tap="goHome">
                     <text class="bar-icon-text">首页</text>
+                </view>
+                <view class="bar-icon" :class="{ active: favorited }" @tap="toggleFavorite">
+                    <text class="bar-icon-text">{{ favorited ? '♥ 已收藏' : '♡ 收藏' }}</text>
                 </view>
                 <view class="bar-btn ghost" @tap="openSku">加入购物车</view>
                 <view class="bar-btn" @tap="openSku">立即购买</view>
@@ -402,6 +440,10 @@ export default {
 .bar-icon-text {
     font-size: 24rpx;
     color: #6b7280;
+}
+
+.bar-icon.active .bar-icon-text {
+    color: #e5484d;
 }
 
 .bar-btn {

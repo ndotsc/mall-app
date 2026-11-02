@@ -29,6 +29,7 @@
                 <text class="b-title">订单信息</text>
                 <text class="b-line">订单号：{{ o.orderNo }}</text>
                 <text class="b-line" v-if="o.remark">备注：{{ o.remark }}</text>
+                <text class="b-line" v-if="o.discountAmount">优惠：-¥{{ (o.discountAmount / 100).toFixed(2) }}</text>
                 <text class="b-line">实付款：¥{{ (o.totalAmount / 100).toFixed(2) }}</text>
             </view>
 

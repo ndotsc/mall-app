@@ -8,6 +8,7 @@ function normalize(o) {
   return {
     orderNo: o.orderNo,
     totalAmount: o.totalAmount,
+    discountAmount: o.discountAmount || 0,
     status: o.status,
     remark: o.remark || '',
     info: { name: o.receiverName, phone: o.receiverPhone, address: o.address },
@@ -49,8 +50,8 @@ export const useOrderStore = defineStore('order', {
         return null
       }
     },
-    async createOrder({ items, info, payType, remark }) {
-      const r = await orderApi.createOrder({ items, info, payType, remark })
+    async createOrder({ items, info, payType, remark, couponId }) {
+      const r = await orderApi.createOrder({ items, info, payType, remark, couponId })
       return r.orderNo
     },
     async setStatus(orderNo, status) {
