@@ -13,6 +13,56 @@
       <uni-search-bar placeholder="搜索商品" cancelButton="none" @confirm="onSearch" />
     </view>
 
+    <!-- 筛选 / 排序工具条：分类胶囊 + 价格区间 + 排序（新增，不破坏原搜索/滚动体验） -->
+    <view class="filter-bar">
+      <!-- 分类：横向滚动胶囊，含「全部」清空筛选 -->
+      <scroll-view class="cat-scroll" scroll-x enable-flex>
+        <view class="cat-row">
+          <view class="cat-pill" :class="{ active: categoryId === '' }" @tap="onCategoryTap('')">全部</view>
+          <view
+            v-for="cat in categories"
+            :key="cat.id"
+            class="cat-pill"
+            :class="{ active: categoryId === cat.id }"
+            @tap="onCategoryTap(cat.id)"
+          >{{ cat.name }}</view>
+        </view>
+      </scroll-view>
+
+      <!-- 价格区间：输入单位为「元」，传给后端前 ×100 转「分」 -->
+      <view class="price-row">
+        <input
+          class="price-input"
+          type="digit"
+          placeholder="最低价"
+          :value="minPrice"
+          @input="onPriceInput('min', $event)"
+          @confirm="onPriceConfirm"
+        />
+        <text class="price-sep">—</text>
+        <input
+          class="price-input"
+          type="digit"
+          placeholder="最高价"
+          :value="maxPrice"
+          @input="onPriceInput('max', $event)"
+          @confirm="onPriceConfirm"
+        />
+        <view class="price-btn" @tap="onPriceConfirm">确定</view>
+      </view>
+
+      <!-- 排序：综合 / 价格升 / 价格降 / 最新 -->
+      <view class="sort-row">
+        <view
+          v-for="opt in sortOptions"
+          :key="opt.value"
+          class="sort-item"
+          :class="{ active: sort === opt.value }"
+          @tap="onSortTap(opt.value)"
+        >{{ opt.label }}</view>
+      </view>
+    </view>
+
     <view id="goods" class="section">
       <text class="section-title">全部商品</text>
       <text class="section-sub">共 {{ total }} 件</text>
@@ -47,7 +97,7 @@
 </template>
 
 <script>
-import { getProducts } from '@/api/goods'
+import { getProducts, getCategories } from '@/api/goods'
 import { resolveImg } from '@/utils/image'
 
 // 小程序端用"滚动到底部自动加载更多"，每页 6 件（2 列 × 3 行一屏，触底再加一屏）；
@@ -67,9 +117,22 @@ export default {
       loaded: false,       // 是否已完成过一次请求
       loadingMore: false,  // 触底加载下一页（只显示底部提示）
       hasMore: true,       // 还有没有下一页
+      // ---- 筛选 / 排序（新增）----
+      categories: [],      // 分类列表（onLoad 拉取）
+      categoryId: '',      // 选中的分类 id，'' 表示「全部」
+      minPrice: '',        // 最低价（元，原始输入字符串）
+      maxPrice: '',        // 最高价（元，原始输入字符串）
+      sort: 'created_desc',// 当前排序，默认「综合」= created_desc
+      sortOptions: [
+        { label: '综合', value: 'created_desc' },
+        { label: '价格升', value: 'price_asc' },
+        { label: '价格降', value: 'price_desc' },
+        { label: '最新', value: 'created_asc' },
+      ],
     }
   },
   onLoad() {
+    this.fetchCategories()
     this.loadProducts(true)
   },
   // uni-app 页面生命周期：页面滚动到底部时触发（H5 与小程序都支持）
@@ -98,6 +161,19 @@ export default {
       try {
         const params = { page: this.page, pageSize: this.pageSize }
         if (this.keyword) params.keyword = this.keyword
+        // 分类筛选：选了具体分类才传（'' 表示全部，不传）
+        if (this.categoryId !== '' && this.categoryId != null) {
+          params.categoryId = this.categoryId
+        }
+        // 价格区间：前端输入是「元」，转「分」后传给后端（minPrice/maxPrice 后端按分比较）
+        const minCents = this.yuanToCents(this.minPrice)
+        const maxCents = this.yuanToCents(this.maxPrice)
+        if (minCents != null) params.minPrice = minCents
+        if (maxCents != null) params.maxPrice = maxCents
+        // 排序：默认 created_desc 不必传，仅传非默认值
+        if (this.sort && this.sort !== 'created_desc') {
+          params.sort = this.sort
+        }
         const data = await getProducts(params)
         if (mySeq !== this.seq) return   // 过期响应，直接丢掉
         const pageList = data?.list || []
@@ -121,6 +197,44 @@ export default {
     onSearch(e) {
       this.keyword = e.value || ''
       this.loadProducts(true)
+    },
+    // 拉取分类列表并渲染胶囊（全部 / 各分类）
+    async fetchCategories() {
+      try {
+        const res = await getCategories()
+        this.categories = res?.data || []
+      } catch (e) {
+        console.error(e)
+        this.categories = []
+      }
+    },
+    // 点选分类：设置选中项并重置到第 1 页重载（'' = 全部）
+    onCategoryTap(id) {
+      this.categoryId = id
+      this.loadProducts(true)
+    },
+    // 价格输入实时记录（uni 的 input 事件 detail.value 才是输入值）
+    onPriceInput(field, e) {
+      const val = e?.detail?.value ?? e?.target?.value ?? ''
+      if (field === 'min') this.minPrice = val
+      else this.maxPrice = val
+    },
+    // 价格「确定」/键盘「完成」：触发筛选
+    onPriceConfirm() {
+      this.loadProducts(true)
+    },
+    // 点选排序：切换并重置重载（同值不重复请求）
+    onSortTap(value) {
+      if (this.sort === value) return
+      this.sort = value
+      this.loadProducts(true)
+    },
+    // 「元」→「分」：非法 / 负数 / 空 返回 null（不传该参数）
+    yuanToCents(val) {
+      if (val === '' || val == null) return null
+      const n = Number(val)
+      if (!Number.isFinite(n) || n < 0) return null
+      return Math.round(n * 100)
     },
     // Hero 按钮：滚动到商品区（对齐 web 版"立即逛逛"跳列表页的行为）
     scrollToGoods() {
@@ -180,6 +294,92 @@ export default {
 /* ---------- 搜索 ---------- */
 .search-wrap {
   padding: 20rpx 24rpx 0;
+}
+
+/* ---------- 筛选 / 排序工具条（新增）---------- */
+.filter-bar {
+  padding: 8rpx 24rpx 16rpx;
+}
+.cat-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+.cat-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.cat-pill {
+  flex: 0 0 auto;
+  margin-right: 16rpx;
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  border: 2rpx solid #e6e8eb;
+  color: #6b7280;
+  font-size: 26rpx;
+}
+.cat-pill.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+.price-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 16rpx;
+}
+.price-input {
+  flex: 1;
+  height: 64rpx;
+  padding: 0 20rpx;
+  background: #fff;
+  border: 2rpx solid #e6e8eb;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  color: #1f2328;
+}
+.price-sep {
+  margin: 0 16rpx;
+  color: #9ca3af;
+  font-size: 26rpx;
+}
+.price-btn {
+  flex: 0 0 auto;
+  margin-left: 16rpx;
+  padding: 0 28rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  border-radius: 16rpx;
+  background: #2563eb;
+  color: #fff;
+  font-size: 26rpx;
+}
+.sort-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 16rpx;
+}
+.sort-item {
+  flex: 1;
+  text-align: center;
+  padding: 12rpx 0;
+  margin-right: 12rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 2rpx solid #e6e8eb;
+  color: #6b7280;
+  font-size: 26rpx;
+}
+.sort-item:last-child {
+  margin-right: 0;
+}
+.sort-item.active {
+  background: #eef4ff;
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 /* ---------- 区块标题（对应 web .page-title / .page-sub）---------- */
