@@ -1,5 +1,6 @@
 <script>
 import { getProduct } from '@/api/goods'
+import { getReviews, createReview } from '@/api/review'
 import { resolveImg } from '@/utils/image'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
@@ -11,6 +12,11 @@ export default {
             product: null,
             loaded: false,
             qty: 1,
+            reviews: { list: [], total: 0, averageRating: 0 },
+            reviewPopup: false,
+            myRating: 5,
+            myContent: '',
+            submitting: false,
         }
     },
     computed: {
@@ -29,6 +35,7 @@ export default {
     onLoad(options) {
         this.id = options.id
         this.loadDetail()
+        this.loadReviews()
     },
     methods: {
         async loadDetail() {
@@ -43,6 +50,19 @@ export default {
                 this.product = null
             } finally {
                 this.loaded = true
+            }
+        },
+        async loadReviews() {
+            if (!this.id) return
+            try {
+                const data = await getReviews({ productId: this.id, page: 1, pageSize: 10 })
+                this.reviews = {
+                    list: data.list || [],
+                    total: data.total || 0,
+                    averageRating: data.stats?.averageRating || 0,
+                }
+            } catch (e) {
+                console.error(e)
             }
         },
         openSku() {
@@ -75,6 +95,49 @@ export default {
         },
         goHome() {
             uni.reLaunch({ url: '/pages/index/index' })
+        },
+        openReview() {
+            this.myRating = 5
+            this.myContent = ''
+            this.reviewPopup = true
+            this.$refs.reviewPopup.open()
+        },
+        closeReview() {
+            this.reviewPopup = false
+            this.$refs.reviewPopup.close()
+        },
+        async submitReview() {
+            if (!useAuthStore().isLoggedIn) {
+                uni.showToast({ title: '请先登录', icon: 'none' })
+                this.closeReview()
+                return uni.navigateTo({ url: '/pages/login/login' })
+            }
+            if (!this.myRating) {
+                uni.showToast({ title: '请先评分', icon: 'none' })
+                return
+            }
+            this.submitting = true
+            try {
+                await createReview({ productId: Number(this.id), rating: this.myRating, content: this.myContent || undefined })
+                uni.showToast({ title: '评价成功', icon: 'none' })
+                this.closeReview()
+                this.loadReviews()
+            } catch (e) {
+                uni.showToast({ title: e?.message || '评价失败', icon: 'none' })
+            } finally {
+                this.submitting = false
+            }
+        },
+        maskName(name) {
+            if (!name) return '匿名'
+            if (name.length <= 2) return name[0] + '***'
+            return name.slice(0, 2) + '***' + name.slice(-1)
+        },
+        formatDate(ts) {
+            if (!ts) return ''
+            const d = new Date(ts)
+            const p = (n) => (n < 10 ? '0' + n : '' + n)
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
         },
     },
 }
@@ -124,6 +187,24 @@ export default {
                 <text class="meta-line">· 全国联保</text>
             </view>
 
+            <!-- 商品评价：公开列表 + 写评价入口 -->
+            <view class="panel">
+                <view class="review-head">
+                    <text class="panel-title">商品评价</text>
+                    <text class="review-stat">{{ reviews.total }} 条 · 平均 {{ reviews.averageRating || 0 }} 分</text>
+                    <text class="review-write" @tap="openReview">写评价</text>
+                </view>
+                <view v-if="reviews.list.length === 0" class="review-empty">暂无评价，快来抢沙发~</view>
+                <view v-for="r in reviews.list" :key="r.id" class="review-item">
+                    <view class="review-top">
+                        <text class="review-name">{{ maskName(r.reviewerName) }}</text>
+                        <text class="review-stars">{{ '★★★★★'.slice(0, r.rating) }}{{ '☆☆☆☆☆'.slice(0, 5 - r.rating) }}</text>
+                    </view>
+                    <text class="review-content">{{ r.content || '该用户未填写评价内容' }}</text>
+                    <text class="review-date">{{ formatDate(r.createdAt) }}</text>
+                </view>
+            </view>
+
             <!-- 底部操作栏：固定在底部，iOS 安全区留白 -->
             <view class="bar">
                 <view class="bar-icon" @tap="goHome">
@@ -157,6 +238,26 @@ export default {
                     <view class="sku-actions">
                         <view class="sku-btn ghost" @tap="addCart">加入购物车</view>
                         <view class="sku-btn" @tap="buyNow">立即购买</view>
+                    </view>
+                </view>
+            </uni-popup>
+
+            <!-- 写评价弹窗 -->
+            <uni-popup ref="reviewPopup" type="bottom" background-color="#ffffff">
+                <view class="review-form">
+                    <view class="review-form-head">
+                        <text class="sku-close" @tap="closeReview">×</text>
+                        <text class="review-form-title">发表评价</text>
+                    </view>
+                    <view class="review-form-body">
+                        <text class="sku-label">评分</text>
+                        <view class="stars">
+                            <text v-for="n in 5" :key="n" class="star" :class="{ active: n <= myRating }" @tap="myRating = n">{{ n <= myRating ? '★' : '☆' }}</text>
+                        </view>
+                        <textarea class="review-textarea" v-model="myContent" maxlength="500" placeholder="说说你的使用感受（选填，最多 500 字）" />
+                    </view>
+                    <view class="review-form-actions">
+                        <view class="sku-btn" @tap="submitReview">{{ submitting ? '提交中...' : '提交评价' }}</view>
                     </view>
                 </view>
             </uni-popup>
@@ -431,5 +532,122 @@ export default {
     display: block;
     font-size: 26rpx;
     color: #4b5563;
+}
+
+/* ---------- 商品评价 ---------- */
+.review-head {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16rpx;
+}
+
+.review-stat {
+    flex: 1;
+    margin-left: 16rpx;
+    font-size: 24rpx;
+    color: #6b7280;
+}
+
+.review-write {
+    font-size: 26rpx;
+    color: #2563eb;
+}
+
+.review-empty {
+    font-size: 26rpx;
+    color: #9ca3af;
+    padding: 20rpx 0;
+    text-align: center;
+}
+
+.review-item {
+    padding: 20rpx 0;
+    border-top: 2rpx solid #f0f1f3;
+}
+
+.review-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.review-name {
+    font-size: 26rpx;
+    color: #1f2328;
+}
+
+.review-stars {
+    font-size: 24rpx;
+    color: #f59e0b;
+}
+
+.review-content {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 26rpx;
+    color: #4b5563;
+    line-height: 1.6;
+}
+
+.review-date {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #9ca3af;
+}
+
+/* ---------- 写评价弹窗 ---------- */
+.review-form {
+    padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.review-form-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 24rpx;
+    border-bottom: 2rpx solid #e6e8eb;
+}
+
+.review-form-title {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #1f2328;
+}
+
+.review-form-body {
+    padding: 32rpx 0;
+}
+
+.stars {
+    display: flex;
+    gap: 16rpx;
+    margin-top: 16rpx;
+}
+
+.star {
+    font-size: 48rpx;
+    color: #d1d5db;
+}
+
+.star.active {
+    color: #f59e0b;
+}
+
+.review-textarea {
+    width: 100%;
+    height: 200rpx;
+    margin-top: 24rpx;
+    padding: 20rpx;
+    box-sizing: border-box;
+    border: 2rpx solid #e6e8eb;
+    border-radius: 16rpx;
+    font-size: 26rpx;
+    color: #1f2328;
+}
+
+.review-form-actions {
+    margin-top: 16rpx;
 }
 </style>
