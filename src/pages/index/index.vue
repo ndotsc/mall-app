@@ -13,21 +13,32 @@
       <uni-search-bar placeholder="搜索商品" cancelButton="none" @confirm="onSearch" />
     </view>
 
-    <!-- 筛选 / 排序工具条：分类胶囊 + 价格区间 + 排序（新增，不破坏原搜索/滚动体验） -->
+    <!-- Banner 轮播：用「精选推荐」商品封面做轮播图，点按进详情（无独立 Banner 表，真实数据驱动） -->
+    <swiper v-if="banners.length" class="banner" :indicator-dots="true" :autoplay="true" :interval="3500" :circular="true" indicator-active-color="#2563eb">
+      <swiper-item v-for="b in banners" :key="b.id" @tap="goDetail(b)">
+        <image class="banner-img" :src="resolveImg(b.cover)" mode="aspectFill" />
+      </swiper-item>
+    </swiper>
+
+    <!-- 筛选 / 排序工具条：分类宫格 + 价格区间 + 排序 -->
     <view class="filter-bar">
-      <!-- 分类：横向滚动胶囊，含「全部」清空筛选 -->
-      <scroll-view class="cat-scroll" scroll-x enable-flex>
-        <view class="cat-row">
-          <view class="cat-pill" :class="{ active: categoryId === '' }" @tap="onCategoryTap('')">全部</view>
-          <view
-            v-for="cat in categories"
-            :key="cat.id"
-            class="cat-pill"
-            :class="{ active: categoryId === cat.id }"
-            @tap="onCategoryTap(cat.id)"
-          >{{ cat.name }}</view>
+      <!-- 分类：宫格（含「全部」清空筛选），点按即按该分类筛选 -->
+      <view class="cat-grid">
+        <view class="cat-cell" :class="{ active: categoryId === '' }" @tap="onCategoryTap('')">
+          <view class="cat-icon">全</view>
+          <text class="cat-name">全部</text>
         </view>
-      </scroll-view>
+        <view
+          v-for="cat in categories"
+          :key="cat.id"
+          class="cat-cell"
+          :class="{ active: categoryId === cat.id }"
+          @tap="onCategoryTap(cat.id)"
+        >
+          <view class="cat-icon">{{ cat.name.slice(0, 1) }}</view>
+          <text class="cat-name">{{ cat.name }}</text>
+        </view>
+      </view>
 
       <!-- 价格区间：输入单位为「元」，传给后端前 ×100 转「分」 -->
       <view class="price-row">
@@ -120,6 +131,7 @@ export default {
       // ---- 筛选 / 排序（新增）----
       categories: [],      // 分类列表（onLoad 拉取）
       categoryId: '',      // 选中的分类 id，'' 表示「全部」
+      banners: [],         // 首页 Banner 轮播：精选推荐商品封面（真实数据驱动）
       minPrice: '',        // 最低价（元，原始输入字符串）
       maxPrice: '',        // 最高价（元，原始输入字符串）
       sort: 'created_desc',// 当前排序，默认「综合」= created_desc
@@ -133,6 +145,7 @@ export default {
   },
   onLoad() {
     this.fetchCategories()
+    this.fetchBanners()
     this.loadProducts(true)
   },
   // uni-app 页面生命周期：页面滚动到底部时触发（H5 与小程序都支持）
@@ -198,7 +211,7 @@ export default {
       this.keyword = e.value || ''
       this.loadProducts(true)
     },
-    // 拉取分类列表并渲染胶囊（全部 / 各分类）
+    // 拉取分类列表并渲染宫格（全部 / 各分类）
     async fetchCategories() {
       try {
         const res = await getCategories()
@@ -206,6 +219,16 @@ export default {
       } catch (e) {
         console.error(e)
         this.categories = []
+      }
+    },
+    // 拉取首页 Banner：取前 4 件「精选推荐」商品封面做轮播（真实数据，无需独立 Banner 表）
+    async fetchBanners() {
+      try {
+        const data = await getProducts({ page: 1, pageSize: 4 })
+        this.banners = (data?.list || []).map((p) => ({ id: p.id, cover: p.cover }))
+      } catch (e) {
+        console.error(e)
+        this.banners = []
       }
     },
     // 点选分类：设置选中项并重置到第 1 页重载（'' = 全部）
@@ -296,33 +319,66 @@ export default {
   padding: 20rpx 24rpx 0;
 }
 
-/* ---------- 筛选 / 排序工具条（新增）---------- */
-.filter-bar {
-  padding: 8rpx 24rpx 16rpx;
+/* ---------- Banner 轮播 ---------- */
+.banner {
+  margin: 20rpx 24rpx 0;
+  width: calc(100% - 48rpx);
+  height: 280rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: #fff;
 }
-.cat-scroll {
+.banner-img {
   width: 100%;
-  white-space: nowrap;
+  height: 280rpx;
 }
-.cat-row {
+
+/* ---------- 筛选 / 排序工具条 ---------- */
+.filter-bar {
+  padding: 20rpx 24rpx 16rpx;
+}
+/* 分类宫格：用 CSS Grid 自适应列数（每列等宽），比横向滚动更贴合「官网感」 */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20rpx 16rpx;
+}
+.cat-cell {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-}
-.cat-pill {
-  flex: 0 0 auto;
-  margin-right: 16rpx;
-  padding: 12rpx 28rpx;
-  border-radius: 999rpx;
+  justify-content: center;
+  padding: 16rpx 0;
+  border-radius: 20rpx;
   background: #fff;
   border: 2rpx solid #e6e8eb;
-  color: #6b7280;
-  font-size: 26rpx;
 }
-.cat-pill.active {
-  background: #2563eb;
+.cat-cell.active {
+  background: #eef4ff;
   border-color: #2563eb;
+}
+.cat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #2563eb;
   color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.cat-cell.active .cat-icon {
+  background: #2563eb;
+}
+.cat-name {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+.cat-cell.active .cat-name {
+  color: #2563eb;
 }
 .price-row {
   display: flex;

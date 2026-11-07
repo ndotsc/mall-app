@@ -24,8 +24,8 @@
 </template>
 
 <script setup>
-import { ref, onShow } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { getFavorites, removeFavorite } from '@/api/favorite'
 import { resolveImg } from '@/utils/image'
 import { useAuthStore } from '@/stores/auth'
