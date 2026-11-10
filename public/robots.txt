@@ -1,6 +1,6 @@
 # D26：H5 目前是 hash 路由 SPA，静态产物只有 index.html 一个入口，
 # #/pages/... 不是独立 URL，所以这里不需要 Disallow 规则。
-# 部署后把下面 sitemap 的 example.com 换成真实域名（D27 补部署地址时一起做）。
+# D27：当前未部署，下面 Sitemap 的 example.com 保持「占位待替换」；拿到真实域名后按 mall-web/PORTFOLIO.md 第 5 节回填。
 User-agent: *
 Allow: /
 
