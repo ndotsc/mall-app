@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- D26 静态 sitemap：部署后把 example.com 换成真实域名。
+     H5 用 hash 路由且无 SSR，商品详情等内页无法被静态枚举；
+     等进阶路线接入 SSR / 预渲染后，再按商品列表生成并追加 URL。 -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

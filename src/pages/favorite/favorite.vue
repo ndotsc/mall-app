@@ -4,13 +4,13 @@
       <text class="title">我的收藏</text>
     </view>
 
-    <view v-if="!loaded" class="tip">加载中...</view>
+    <page-skeleton v-if="!loaded" type="grid" :rows="4" />
     <view v-else-if="!list.length" class="tip">还没有收藏任何商品，去首页逛逛吧~</view>
 
     <view v-else class="grid">
       <view class="card" v-for="item in list" :key="item.id" @tap="goDetail(item)">
         <view class="thumb-wrap">
-          <image class="thumb" :src="resolveImg(item.product?.cover)" mode="aspectFill" />
+          <smart-image class="thumb" :src="resolveImg(item.product?.cover)" mode="aspectFill" />
           <view class="remove" @tap.stop="remove(item)">取消收藏</view>
         </view>
         <view class="info">

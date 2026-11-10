@@ -16,7 +16,8 @@
     <!-- Banner 轮播：用「精选推荐」商品封面做轮播图，点按进详情（无独立 Banner 表，真实数据驱动） -->
     <swiper v-if="banners.length" class="banner" :indicator-dots="true" :autoplay="true" :interval="3500" :circular="true" indicator-active-color="#2563eb">
       <swiper-item v-for="b in banners" :key="b.id" @tap="goDetail(b)">
-        <image class="banner-img" :src="resolveImg(b.cover)" mode="aspectFill" />
+        <!-- Banner 是首屏主图，不懒加载，避免轮播第一张延迟出现 -->
+        <smart-image class="banner-img" :src="resolveImg(b.cover)" mode="aspectFill" :lazy="false" />
       </swiper-item>
     </swiper>
 
@@ -83,7 +84,7 @@
     <view class="grid">
       <view class="card" v-for="item in list" :key="item.id" @tap="goDetail(item)">
         <view class="thumb-wrap">
-          <image class="thumb" :src="resolveImg(item.cover)" mode="aspectFill" />
+          <smart-image class="thumb" :src="resolveImg(item.cover)" mode="aspectFill" />
         </view>
         <view class="info">
           <text class="name">{{ item.name }}</text>
@@ -93,7 +94,14 @@
       </view>
     </view>
 
-    <view v-if="loading || !loaded" class="loading">加载中...</view>
+    <!-- D26：加载中用骨架屏；请求失败单独给重试入口，不再伪装成「暂无商品」 -->
+    <page-skeleton v-if="loading || !loaded" type="grid" :rows="4" />
+    <error-state
+      v-else-if="loadError && !list.length"
+      title="商品加载失败"
+      description="没能取到商品列表，检查网络后重试一次。"
+      @retry="reload"
+    />
     <!-- loaded 用来区分「还没加载过」和「加载完确实是空的」，避免首帧闪一下"暂无商品" -->
     <view v-else-if="!list.length" class="loading">
       {{ keyword ? `没有找到与「${keyword}」相关的商品` : '暂无商品' }}
@@ -126,6 +134,7 @@ export default {
       seq: 0,              // 请求序号，用来丢弃过期响应
       loading: false,      // 首屏/搜索加载（整块 loading）
       loaded: false,       // 是否已完成过一次请求
+      loadError: false,    // D26：请求失败 ≠ 没有商品
       loadingMore: false,  // 触底加载下一页（只显示底部提示）
       hasMore: true,       // 还有没有下一页
       // ---- 筛选 / 排序（新增）----
@@ -195,9 +204,12 @@ export default {
         this.total = data?.total || 0
         // 后端 total 是"筛选后的总条数"，已加载满就说明到底了
         this.hasMore = this.list.length < this.total && pageList.length > 0
+        this.loadError = false
       } catch (e) {
         console.error(e)
-        if (!isFirstPage) this.page -= 1   // 加载失败回退页码，下次触底能重试同一页
+        // D26：首屏失败显示错误态（而不是「暂无商品」）；触底失败只回退页码，保留已有列表
+        if (isFirstPage) this.loadError = true
+        else this.page -= 1   // 加载失败回退页码，下次触底能重试同一页
       } finally {
         // 只有最新一次请求才收尾，否则会把新请求的 loading 提前关掉
         if (mySeq === this.seq) {
@@ -206,6 +218,11 @@ export default {
           this.loaded = true
         }
       }
+    },
+    // D26：错误态的「重新加载」按钮
+    reload() {
+      this.loadError = false
+      this.loadProducts(true)
     },
     onSearch(e) {
       this.keyword = e.value || ''

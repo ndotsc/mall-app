@@ -60,5 +60,12 @@
     "uniStatistics": {  
         "enable": false
     },
+    "h5" : {
+        "title" : "Mall 商城",
+        "router" : {
+            "mode" : "hash",
+            "base" : "./"
+        }
+    },
     "vueVersion" : "3"
 }

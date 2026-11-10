@@ -1,7 +1,7 @@
 <template>
   <view class="mine">
     <view class="header">
-      <image v-if="auth.user && auth.user.avatar" :src="resolveImg(auth.user.avatar)" class="avatar" />
+      <smart-image v-if="auth.user && auth.user.avatar" :src="resolveImg(auth.user.avatar)" class="avatar" />
       <view v-else class="avatar placeholder">👤</view>
       <view class="name">{{ auth.isLoggedIn ? auth.nickname : '未登录' }}</view>
       <button v-if="!auth.isLoggedIn" class="login-btn" size="mini" @tap="goLogin">登录 / 注册</button>

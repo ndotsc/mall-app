@@ -16,7 +16,7 @@
             <view class="block">
                 <text class="b-title">商品清单</text>
                 <view class="g-row" v-for="it in o.items" :key="it.productId">
-                    <image class="g-pic" :src="resolveImg(it.cover)" mode="aspectFill" />
+                    <smart-image class="g-pic" :src="resolveImg(it.cover)" mode="aspectFill" />
                     <view class="g-info">
                         <text class="g-name">{{ it.name }}</text>
                         <text class="g-price">¥{{ (it.price / 100).toFixed(2) }}</text>

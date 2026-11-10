@@ -1,0 +1,7 @@
+# D26：H5 目前是 hash 路由 SPA，静态产物只有 index.html 一个入口，
+# #/pages/... 不是独立 URL，所以这里不需要 Disallow 规则。
+# 部署后把下面 sitemap 的 example.com 换成真实域名（D27 补部署地址时一起做）。
+User-agent: *
+Allow: /
+
+Sitemap: https://example.com/sitemap.xml

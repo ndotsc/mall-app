@@ -180,10 +180,8 @@ export default {
 
 <template>
     <view class="page">
-        <!-- 加载中 / 商品不存在：两种异常状态先兜住，避免白屏 -->
-        <view v-if="!loaded" class="state">
-            <text class="state-desc">加载中...</text>
-        </view>
+        <!-- D26：加载中用骨架屏撑住首屏；商品不存在继续用文字兜底 -->
+        <page-skeleton v-if="!loaded" type="list" :rows="3" />
         <view v-else-if="!product" class="state">
             <text class="state-title">商品不存在</text>
             <text class="state-desc">可能已下架，或链接有误</text>
@@ -195,7 +193,7 @@ export default {
             <swiper class="gallery" :indicator-dots="images.length > 1" :autoplay="images.length > 1"
                 :circular="images.length > 1" indicator-active-color="#ffffff">
                 <swiper-item v-for="(img, i) in images" :key="i">
-                    <image class="gallery-img" :src="img" mode="aspectFill" />
+                    <smart-image class="gallery-img" :src="img" mode="aspectFill" :lazy="false" />
                 </swiper-item>
             </swiper>
 
@@ -256,7 +254,7 @@ export default {
             <uni-popup ref="skuPopup" type="bottom" background-color="#ffffff">
                 <view class="sku">
                     <view class="sku-head">
-                        <image class="sku-thumb" :src="images[0]" mode="aspectFill" />
+                        <smart-image class="sku-thumb" :src="images[0]" mode="aspectFill" />
                         <view class="sku-info">
                             <text class="sku-price">¥{{ priceYuan }}</text>
                             <text class="sku-stock">库存充足</text>

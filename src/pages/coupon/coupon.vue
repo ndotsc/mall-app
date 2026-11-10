@@ -5,7 +5,7 @@
       <text class="sub">领券下单更划算</text>
     </view>
 
-    <view v-if="!loaded" class="tip">加载中...</view>
+    <page-skeleton v-if="!loaded" type="list" :rows="4" />
     <view v-else-if="!list.length" class="tip">暂无可领取的优惠券</view>
 
     <view v-else class="list">

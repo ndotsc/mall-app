@@ -21,7 +21,7 @@
                     <view class="checkbox" :class="{ on: item.checked }" @tap="cart.toggleCheck(item.productId)">
                         <text v-if="item.checked" class="tick">✓</text>
                     </view>
-                    <image class="pic" :src="resolveImg(item.image)" mode="aspectFill" />
+                    <smart-image class="pic" :src="resolveImg(item.image)" mode="aspectFill" />
                     <view class="info">
                         <text class="name">{{ item.title }}</text>
                         <text class="price">¥{{ (item.price / 100).toFixed(2) }}</text>

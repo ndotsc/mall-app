@@ -21,7 +21,7 @@
             <!-- 商品清单（来自购物车勾选项） -->
             <view class="goods">
                 <view class="g-row" v-for="it in items" :key="it.productId">
-                    <image class="g-pic" :src="resolveImg(it.cover)" mode="aspectFill" />
+                    <smart-image class="g-pic" :src="resolveImg(it.cover)" mode="aspectFill" />
                     <view class="g-info">
                         <text class="g-name">{{ it.name }}</text>
                         <text class="g-price">¥{{ (it.price / 100).toFixed(2) }}</text>

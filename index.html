@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <script>
@@ -9,7 +9,20 @@
         '<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0' +
         (coverSupport ? ', viewport-fit=cover' : '') + '" />')
     </script>
-    <title></title>
+    <!-- D26：H5 静态 meta。带 example.com 的地址是占位，部署后换成真实域名（D27 一起做）。 -->
+    <title>Mall 商城 - uni-app 多端商城</title>
+    <meta name="description" content="用 uni-app 一套代码编译到微信小程序 / H5 / Android App 的商城：商品浏览、搜索筛选、购物车、下单、收藏与优惠券。" />
+    <meta name="keywords" content="uni-app, 小程序, H5, Android, Vue3, 商城, 全栈实战" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mall 商城" />
+    <meta property="og:title" content="Mall 商城 - uni-app 多端商城" />
+    <meta property="og:description" content="一套 Vue 代码，同时跑在微信小程序、H5 与 Android App 上。" />
+    <meta name="twitter:card" content="summary" />
+    <!-- 说明：H5 是 hash 路由的 SPA，爬虫只能看到这些静态 meta 与空容器；
+         真正的内页 SEO 需要 SSR / 预渲染（进阶路线）。 -->
     <!--preload-links-->
     <!--app-context-->
   </head>
